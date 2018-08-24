@@ -20,4 +20,13 @@ class TimeUsageSuite extends FunSuite with BeforeAndAfterAll {
       assert(result.contains(StructField("B",DoubleType,false)))
 
   }
+
+  test ("return An RDD Row compatible with the schema produced by `dfSchema`"){
+    val secondLine = List("A","0.1")
+    val rowResult = row(secondLine)
+    println(rowResult)
+    assert(rowResult.get(1).equals(0.1d))
+    assert(rowResult.get(0).equals("A"))
+  }
+
 }
