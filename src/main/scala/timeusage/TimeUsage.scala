@@ -88,7 +88,30 @@ object TimeUsage {
     *    “t10”, “t12”, “t13”, “t14”, “t15”, “t16” and “t18” (those which are not part of the previous groups only).
     */
   def classifiedColumns(columnNames: List[String]): (List[Column], List[Column], List[Column]) = {
-    ???
+
+    val classificationReference = List(
+      (0,List("t01", "t03", "t11", "t1801", "t1803")),
+      (1,List("t05", "t1805")),
+        (2,List("t02", "t04", "t06", "t07", "t08", "t09", "t10", "t12", "t13", "t14", "t15", "t16", "t18"))
+    )
+
+    val result : Map[Int, List[Column]] = columnNames.foldLeft(List.empty[(Int,Column)])((acc,colName)=>{
+      classificationReference.flatMap{
+        //generate (index,column, weight): weight will be used to attribute the right column to the right group
+        case (index,lst) if lst.exists(colName.startsWith) => Some((index, new Column(colName),lst.find(colName.startsWith(_)).getOrElse("").size))
+        case _ => None
+      } .sortBy(- _._3)  // sort by Weight asc. t1805 of group 1 weight (=5) is bigger than t18 (=3) of group 2.
+        .headOption match {
+        case Some(tuple) => (tuple._1,tuple._2) :: acc
+        case None => acc
+      }
+    })
+      .groupBy(_._1)
+      .mapValues(_.map(_._2))
+
+    val results = (0 to 2).map(index => result.getOrElse(index, List.empty[Column]))
+
+    (results(0), results(1), results(2))
   }
 
   /** @return a projection of the initial DataFrame such that all columns containing hours spent on primary needs
