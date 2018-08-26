@@ -24,6 +24,7 @@ object TimeUsage {
   /** Main function */
   def main(args: Array[String]): Unit = {
     timeUsageByLifePeriod()
+    spark.stop
   }
 
   def timeUsageByLifePeriod(): Unit = {
@@ -193,7 +194,10 @@ object TimeUsage {
     *               Finally, the resulting DataFrame should be sorted by working status, sex and age.
     */
   def timeUsageGrouped(summed: DataFrame): DataFrame = {
-    ???
+    summed.groupBy('working, 'sex,'age).agg(
+      round(avg('primaryNeeds),1).as("primaryNeeds"),
+      round(avg('work),1).as("work"),
+      round(avg('other),1).as("other")).orderBy('working, 'sex, 'age)
   }
 
   /**
@@ -210,8 +214,7 @@ object TimeUsage {
     * @param viewName Name of the SQL view to use
     */
   def timeUsageGroupedSqlQuery(viewName: String): String =
-    ???
-
+   s"SELECT working, sex, age, ROUND(AVG(primaryNeeds),1) as primaryNeeds, ROUND(AVG(work),1) as work,  ROUND(AVG(other),1) as other FROM $viewName GROUP BY working, sex, age ORDER BY working, sex, age"
   /**
     * @return A `Dataset[TimeUsageRow]` from the “untyped” `DataFrame`
     * @param timeUsageSummaryDf `DataFrame` returned by the `timeUsageSummary` method
@@ -220,7 +223,7 @@ object TimeUsage {
     *                           cast them at the same time.
     */
   def timeUsageSummaryTyped(timeUsageSummaryDf: DataFrame): Dataset[TimeUsageRow] =
-    ???
+    timeUsageSummaryDf.as[TimeUsageRow]
 
   /**
     * @return Same as `timeUsageGrouped`, but using the typed API when possible
@@ -234,8 +237,17 @@ object TimeUsage {
     *               Hint: you should use the `groupByKey` and `typed.avg` methods.
     */
   def timeUsageGroupedTyped(summed: Dataset[TimeUsageRow]): Dataset[TimeUsageRow] = {
-    import org.apache.spark.sql.expressions.scalalang.typed
-    ???
+    import org.apache.spark.sql.expressions.scalalang.typed.avg
+    def roundBy1(d:Double) = (d * 10).round / 10d
+    summed
+      .groupByKey(row => (row.working, row.sex, row.age))
+      .agg(
+        avg(_.primaryNeeds),
+        avg(_.work),
+        avg(_.other)
+      ).map {
+      case ((working, sex, age), primaryNeeds, work, other) => TimeUsageRow(working, sex, age,  roundBy1(primaryNeeds), roundBy1(work), roundBy1(other))
+    }.orderBy('working, 'sex, 'age)
   }
 }
 
